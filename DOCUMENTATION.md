@@ -1,6 +1,8 @@
-# Terminal Bundle
+An utility bundle helping you to create and run commands from your terminal within the context of your kernel.
 
-An utility bundle helping you to create and run commands within the context of your container.
+```bash
+npm i -S @kaviar/terminal-bundle
+```
 
 ```typescript
 // file: src/cli.ts
@@ -19,25 +21,9 @@ const kernel = new Kernel({
 kernel.init();
 ```
 
-## Create a shortcut for yourself:
-
-```
-ln -s dist/cli.js cli ; chmod 755 cli
-```
-
-## Run it:
-
-```
-./cli --help
-./cli run "my:command"
-./cli run "my:command" --model "{collectionName: 'Users'}"
-./cli list
-
-# Autocompletion for your commands
-./cli
-```
-
 ## Command Types
+
+There are several types of commands:
 
 Inquire & Write:
 
@@ -46,12 +32,23 @@ Inquire & Write:
 
 Executor:
 
-- Simply executes a function within your containers.
+- Simply executes a function with arguments you can pass from command line
+
+Inquire & Executor:
+
+- An inquirer, responsible for asking the right questions from you
+- Simply executes a function with the model from Inquire & Executor
 
 ## Creating a command
 
 ```typescript
+import { Service, Inject, ContainerInstance } from "@kaviar/core";
+
+@Service()
 class DropCollectionCommand implements IExecutor<{ collectionName: string }> {
+  @Inject()
+  protected readonly container: ContainerInstance;
+
   execute(model) {
     // get the db service via injection in constructor
     // drop model.collectionName
@@ -69,16 +66,42 @@ CommanderService.registerCommand({
 
 ```
 
+## Command Line
+
+You can run `.ts` files directly using `ts-node` package:
+
+```bash
+npm i -g ts-node
+```
+
+```bash
+ts-node src/cli.ts --help
+ts-node src/cli.ts run "app:drop-collection"
+
+# Autocompletion for your commands
+ts-node src/cli.ts
+```
+
+You can also create the model from `JSON`:
+
 ```bash
 ./cli run app:drop-collection --model "{ collectionName: 'users' }"
 ```
 
-## Asking questions
+## Asking Questions
+
+Let's explore how we can use the inquirer to ask questions.
 
 ```typescript
 import { Shortcuts, Inquirer } from "@kaviar/terminal-bundle";
 
-class DropCollectionInquirer extends Inquirer<{ collectionName: string }> {
+class DropCollectionModel {
+  collectionName: string;
+}
+
+class DropCollectionInquirer extends Inquirer<DropCollectionModel> {
+  model = new DropCollectionModel();
+
   async inquire() {
     // This will inject the returned value of the inpuit
     await this.prompt(
@@ -133,43 +156,22 @@ CommanderService.registerCommand({
 Now, we could have used executor to write files, but the problem is that writing files requires additional logic this is why we introduce the "writer":
 
 ```typescript
-import { BlueprintWriter } from "@kaviar/terminal-bundle";
+import { BlueprintWriter, IBlueprintWriterSession } from "@kaviar/terminal-bundle";
 import _ from 'lodash';
 
-// Just a simple template
-const CollectionTemplate: IBlueprintTemplate<{ collectionName: string }> = ({ collectionName }) => {
-  const className = _capitalize(_.camelCase(collectionName));
+class CollectionBlueprintWriter extends BlueprintWriter<DropCollectionModel> {
+  // Not that you can use Inject and have access to the container via this.container
 
-  return
-`
-import X from "...";
+  async write(model: DropCollectionModel, session: IBlueprintWriterSession) {
+    session.append(`src/bundles/core/${model.collectionName}`, renderYourTemplateSomehow(model)));
 
-export default ${className}Collection {
-  // Bla bla bla
-}
-`;
-}
-
-class CollectionBlueprintWriter extends BlueprintWriter<{
-  collectionName: string;
-}> {
-  async write(model, session) {
-    // sess
-    // get the db service via injection in constructor
-    // drop model.collectionName
-    session.append(`src/bundles/core/${model.collectionName}`, CollectionTemplate(model)));
-
-    // Compose with other writers:
+    // Compose with other writers if you do have them and pass them the current session
     this.getWriter(CollectionHooks).write(model.hooks, session);
 
     // You just push things to session, you do not commit anything
+    session.afterCommit(() => {
+      // Your files have been written
+    })
   }
 }
 ```
-
-## Notes
-
-- Both writers and executors are services and they can be injected with any services you have available
-- You can compose both Inquirers and BlueprintWriters
-- You can have all 3 Inquirers, Writers, Executors. But having both Writer and Executor may not make much sense
-- Look at Shortcuts and use it

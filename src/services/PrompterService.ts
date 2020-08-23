@@ -46,8 +46,19 @@ export class PrompterService implements IPrompter {
     continuationMessage?: string
   ): Promise<V[]> {
     const values = [];
+
     while (true) {
-      const value = await this.prompt(prompt);
+      let promptDefault = prompt.default;
+      promptDefault =
+        typeof promptDefault === "object"
+          ? { ...promptDefault }
+          : promptDefault;
+
+      const value = await this.prompt({
+        ...prompt,
+        default: promptDefault,
+      });
+
       values.push(value);
 
       // Ask if want to continue

@@ -36,11 +36,14 @@ export abstract class Inquirer<T = any> implements IInquirer<T> {
     };
     await this.eventManager.emit(new BeforePromptEvent(eventData));
 
+    // Currently we do not support default values for "many"
+    // This should be easily changeable in the future
     const newPrompt = {
       default: this.model ? this.model[field] : null,
       ...prompt,
     };
 
+    // For many we should generate a new model each time.
     const value = options.many
       ? await this.prompter.promptMany(newPrompt, options.continuationMessage)
       : await this.prompter.prompt(newPrompt);
