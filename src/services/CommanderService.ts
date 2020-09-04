@@ -68,11 +68,11 @@ export class CommanderService implements ICommandService {
   }
 
   registerCommand(command: ICommand) {
-    if (this.getCommand(this.getCommandId(command))) {
-      throw new Error("Command already exists");
+    if (this.getCommand(command.id)) {
+      throw new Error(
+        `Another command with the same id (${command.id}) is already registered.`
+      );
     }
-
-    // TODO: additional validation
 
     this.commands.push(command);
   }
@@ -82,22 +82,16 @@ export class CommanderService implements ICommandService {
   }
 
   getCommand(id: string): ICommand {
-    const [namespace, name] = id.split(SEPARATOR);
-
     return this.commands.find((command) => {
-      return command.name === name && command.namespace === namespace;
+      return command.id === id;
     });
-  }
-
-  getCommandId(c: ICommand) {
-    return `${c.namespace}${SEPARATOR}${c.name}`;
   }
 
   async inquire(): Promise<void> {
     const commandId = await this.prompter.prompt(
       Shortcuts.autocomplete(
         "Choose a command",
-        this.commands.map(this.getCommandId)
+        this.commands.map((c) => c.id)
       )
     );
 
@@ -218,7 +212,10 @@ export class CommanderService implements ICommandService {
           return;
         }
         this.commands.forEach((command) => {
-          console.log(this.getCommandId(command));
+          console.log({
+            id: command.id,
+            description: command.description,
+          });
         });
       });
   }

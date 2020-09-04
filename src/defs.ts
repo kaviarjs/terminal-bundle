@@ -25,8 +25,7 @@ export interface ICommandRunOptions {
 }
 
 export interface ICommand {
-  namespace: "api" | "ui" | string;
-  name: string;
+  id: string;
   description?: string;
   inquirer?: Constructor<IInquirer>;
   writer?: Constructor<IBlueprintWriter>;
