@@ -16,7 +16,15 @@ import * as recursiveCopy from "recursive-copy";
 })
 export class BlueprintWriterSession implements IBlueprintWriterSession {
   protected operations: IBlueprintWriterOperation[] = [];
+  /**
+   * This contains a list of handlers that are mandatory to run.
+   */
   protected afterCommitHandlers: ((...args: any[]) => any)[] = [];
+  /**
+   * This is used specifically to leave information
+   * When doing large-scale generations we want to avoid this
+   */
+  protected afterCommitInstructions: ((...args: any[]) => any)[] = [];
 
   @Inject()
   protected readonly container: ContainerInstance;
@@ -76,11 +84,13 @@ export class BlueprintWriterSession implements IBlueprintWriterSession {
   installNpmPackage(
     name: string,
     version: string,
-    options: { dev: boolean } = { dev: false }
+    options: { dev?: boolean; rootDir?: string } = { dev: false }
   ) {
     this.operations.push({
       type: "deep-extend-json",
-      paths: ["package.json"],
+      paths: options.rootDir
+        ? [path.join(options.rootDir, "package.json")]
+        : ["package.json"],
       value: {
         [options.dev ? "devDependencies" : "dependencies"]: {
           [name]: version,
@@ -150,7 +160,10 @@ export class BlueprintWriterSession implements IBlueprintWriterSession {
           const jsonObject = JSON.parse(jsonFile.toString());
           const newObject = mergeDeep(jsonObject, operation.value);
 
-          fs.writeFileSync(operation.paths[0], JSON.stringify(newObject));
+          fs.writeFileSync(
+            operation.paths[0],
+            JSON.stringify(newObject, null, 2)
+          );
           break;
         case "write":
           this.ensureFolderExistsForFilePath(operation.paths[0]);
@@ -159,7 +172,7 @@ export class BlueprintWriterSession implements IBlueprintWriterSession {
           });
           break;
         case "custom":
-          operation.value();
+          await operation.value();
           break;
         default:
           throw new Error(`Operation type "${operation.type}" not recognised.`);
@@ -171,6 +184,12 @@ export class BlueprintWriterSession implements IBlueprintWriterSession {
       await afterCommitHandler();
     }
     this.afterCommitHandlers = [];
+    if (!options?.skipInstructions) {
+      for (const afterCommitHandler of this.afterCommitInstructions) {
+        await afterCommitHandler();
+      }
+    }
+    this.afterCommitInstructions = [];
   }
 
   /**
@@ -179,6 +198,16 @@ export class BlueprintWriterSession implements IBlueprintWriterSession {
    */
   afterCommit(handler) {
     this.afterCommitHandlers.push(handler);
+
+    return this;
+  }
+
+  /**
+   * Register a function to execute after commit has been made
+   * @param handler
+   */
+  afterCommitInstruction(handler) {
+    this.afterCommitInstructions.push(handler);
 
     return this;
   }

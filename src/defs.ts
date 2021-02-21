@@ -1,5 +1,6 @@
-import { Constructor } from "@kaviar/core";
+import { Constructor, ContainerInstance } from "@kaviar/core";
 import { DistinctQuestion } from "inquirer";
+import { BlueprintWriterSession } from "./models";
 
 export interface ITerminalBundleConfig {
   commands?: ICommand[];
@@ -30,6 +31,7 @@ export interface ICommand {
   inquirer?: Constructor<IInquirer>;
   writer?: Constructor<IBlueprintWriter>;
   executor?: Constructor<IExecutor>;
+  sessionFactory?: (container: ContainerInstance) => IBlueprintWriterSession;
 }
 
 export interface IExecutor<M = any> {
@@ -66,8 +68,11 @@ export interface IPrompt {
   default?: any;
 }
 
-export interface IBlueprintWriter<T = any> {
-  write(model: T, session: IBlueprintWriterSession);
+export interface IBlueprintWriter<
+  T = any,
+  SessionType = IBlueprintWriterSession
+> {
+  write(model: T, session: SessionType);
 }
 
 export interface IBlueprintWriterOperation {
@@ -97,7 +102,7 @@ export interface IBlueprintWriterSession {
   installNpmPackage(
     name: string,
     version: string,
-    options?: { dev: boolean }
+    options?: { dev?: boolean; rootDir?: string }
   ): IBlueprintWriterSession;
   addEnvironmentVariable(name: string, value: string): IBlueprintWriterSession;
 
@@ -108,7 +113,8 @@ export interface IBlueprintWriterSession {
 }
 
 export interface IBlueprintSessionCommitOptions {
-  verbose: true;
+  verbose: boolean;
+  skipInstructions: boolean;
 }
 
 export interface IInquiryPromptOptions {

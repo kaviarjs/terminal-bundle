@@ -35,8 +35,8 @@ export class TerminalBundle extends Bundle<ITerminalBundleConfig> {
         commanderService.registerCommand(command);
       });
     }
-    inquirer.registerPrompt("autocomplete", InquirerAutocomplete);
 
+    inquirer.registerPrompt("autocomplete", InquirerAutocomplete);
     inquirer.registerPrompt("search-list", InquirerSearchList);
   }
 }

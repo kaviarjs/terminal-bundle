@@ -133,9 +133,13 @@ export class CommanderService implements ICommandService {
 
     if (command.writer) {
       const writer = this.container.get<IBlueprintWriter>(command.writer);
-      const writerSession = this.container.get<IBlueprintWriterSession>(
-        BlueprintWriterSession
-      );
+      let writerSession;
+
+      if (command.sessionFactory) {
+        writerSession = command.sessionFactory.call(null, this.container);
+      } else {
+        writerSession = this.container.get(BlueprintWriterSession);
+      }
 
       const eventData = {
         command,
